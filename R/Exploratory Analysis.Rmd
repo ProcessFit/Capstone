@@ -1,0 +1,153 @@
+---
+title: "2017-12-29 Capstone Working"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+
+```{r env}
+# Setup environment
+
+library(tm)
+library(wordcloud)
+library(knitr)
+# BLOGS
+f1 = "en_US.blogs.txt"
+f2 = "en_US.twitter.txt"
+f3 = "en_US.news.txt"
+prefix = "../input/"
+```
+
+
+
+# Project Description
+The goal of this project is just to display that you've gotten used to working with the data and that you are on track to create your prediction algorithm.  
+
+-  Please submit a report on R Pubs (http://rpubs.com/) that explains your exploratory analysis and your goals for the eventual app and algorithm. 
+
+-  This document should be concise and explain only the major features of the data you have identified and briefly summarize your plans for creating the prediction algorithm and Shiny app in a way that would be understandable to a non-data scientist manager. 
+
+-  You should make use of tables and plots to illustrate important summaries of the data set. 
+
+The motivation for this project is to:  
+  1. Demonstrate that you've downloaded the data and have successfully loaded it in.  
+  2. Create a basic report of summary statistics about the data sets.  
+  3. Report any interesting findings that you amassed so far.  
+  4. Get feedback on your plans for creating a prediction algorithm and Shiny app.
+
+
+# Task
+
+**Exploratory analysis** - perform a thorough exploratory analysis of the data, understanding the distribution of words and relationship between the words in the corpora.
+--> basic summaries of the three files? Word counts, line counts and basic data tables?
+--> basic plots, such as histograms to illustrate features of the data
+
+**Understand frequencies of words and word pairs** - build figures and tables to understand variation in the frequencies of words and word pairs in the data.
+
+*Resources*:
+CRAN Task View: Natural Language Processing:
+https://cran.r-project.org/web/views/NaturalLanguageProcessing.html
+
+http://nihlibrary.campusguides.com/ld.php?content_id=21937674
+
+
+
+## Word Counts
+
+
+```{r counts}
+doc_counts <- function(file_name, count_type){
+    # Using the 'awk' command for quicker word and line counts
+    if(count_type=='word'){
+    com <- paste("wc -w ", file_name, " | awk '{ print $1 }'", sep="")
+    } else if (count_type=='line') {
+    com <- paste("wc -l ", file_name, " | awk '{ print $1 }'", sep="")  
+    } else {
+    com <- paste("wc -c ", file_name, " | awk '{ print $1 }'", sep="")   
+    }
+    n <- system(command=com, intern=TRUE)
+    as.numeric(n)
+}
+
+df <- data.frame(filename = character(),
+                 line_count=integer(), 
+                 word_count=integer(), 
+                 char_count=integer(),
+                 stringsAsFactors=FALSE) 
+for(f in c(f1,f2,f3)){
+    f_name <- paste0(prefix,f)
+    df[nrow(df) + 1,]= list(f, doc_counts(f_name,'line'), doc_counts(f_name,'word'),  doc_counts(f_name,'char'))
+}
+df['words_per_line'] = df['word_count']/df['line_count']
+df['char_per_line'] = df['char_count']/df['line_count']
+df['char_per_word'] = df['char_count']/df['word_count']
+kable(df)
+```
+
+
+```{r max_line}
+get_words <- function(file_name, numlines){
+    con <- file(file_name, "r") 
+    lines <- readLines(con, numlines, skipNul = TRUE)
+      # tokenize words and add to bag of words
+    close(con) 
+    return(lines)
+}
+
+tokenise <- function(input_line){
+  
+}
+
+
+#print(get_max_line(f1))
+#print(get_max_line(f2))
+words <- get_words(paste0(prefix,f2),20000)
+```
+
+
+```{r stopwords}
+docs <- Corpus(VectorSource(words))
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, content_transformer(removePunctuation))
+docs <- tm_map(docs, content_transformer(removeNumbers))
+
+stopped <-  tm_map(docs, removeWords, stopwords("english"))
+stopped <- tm_map(stopped, content_transformer(stripWhitespace))
+
+dtm <- DocumentTermMatrix(docs)
+dtm
+
+dtms <- DocumentTermMatrix(stopped)
+dtms
+findFreqTerms(dtms,lowfreq=200)
+
+freq <- colSums(as.matrix(dtms))
+ord <- order(freq, decreasing = TRUE)
+freq[head(ord, n = 20)]
+wordcloud(names(freq), freq, min.freq = 100,colors = brewer.pal(8,"Spectral"))
+
+```
+
+```{r assoc}
+findAssocs(dtms, "flash", 0.4)
+
+
+```
+```{r unsparse}
+dtms_ <- removeSparseTerms(dtms, 0.9999)
+dtms_
+
+```
+
+
+```{r tokens}
+#tokens = tokenize_words(paste(words, collapse = ' '))
+#unique(tokens)
+```
+
